@@ -266,21 +266,18 @@ const POLE_FILE_NAME = 'https://github.com/rodox2886/GeoAlerta/raw/refs/heads/ma
                 document.getElementById('alerts-placeholder').innerText = "Error al cargar datos. Refresca la app.";
             }
         }
-
-        async function loadTaskFile(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`No se encontró ${url}`);
-            const text = await response.text();
-            return new Promise((resolve, reject) => {
-                Papa.parse(text, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => resolve(results.data),
-                    error: (err) => reject(err)
-                });
-            });
-        }
-
+               /**
+ * Carga y parsea el archivo de Tareas (AHORA COMO XLSX)
+ */
+async function loadTaskFile(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`No se encontró ${url}`);
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' }); // <-- ESTO SÍ LEE EXCEL
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_json(worksheet);
+}
         async function loadPoleFile(url) {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`No se encontró ${url}`);
@@ -449,6 +446,7 @@ const POLE_FILE_NAME = 'https://github.com/rodox2886/GeoAlerta/raw/refs/heads/ma
 </body>
 
 </html>
+
 
 
 
