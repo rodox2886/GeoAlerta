@@ -10,56 +10,32 @@
     <link rel="manifest" href="manifest.json">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        /* Estilo para el contenedor del mapa */
+        /* Estilos CSS (Modificados para móvil) */
         #map {
-    height: 100%;
-    width: 100%;
-}
-        /* Asegura que la fuente Inter se use */
+            height: 100%;
+            width: 100%;
+        }
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Scrollbar personalizada */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 6px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-        /* Estilo para el cursor de "crosshair" sobre el mapa */
-        .leaflet-container {
-            cursor: crosshair !important;
-        }
-        /* Estilos para notificaciones */
-        .notification {
-            transition: all 0.5s ease-in-out;
-            opacity: 1;
-        }
-        .notification.fade-out {
-            opacity: 0;
-            transform: translateX(100%);
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        .leaflet-container { cursor: crosshair !important; }
+        .notification { transition: all 0.5s ease-in-out; opacity: 1; }
+        .notification.fade-out { opacity: 0; transform: translateX(100%); }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col sm:flex-row h-screen overflow-hidden">
 
-    <aside class="w-full sm:w-1/3 lg:w-1/4 xl:w-1/5 h-auto sm:h-screen bg-white shadow-lg flex flex-col z-10">
+    <aside class="w-full sm:w-1/3 lg:w-1/4 xl:w-1/5 h-[40vh] sm:h-screen bg-white shadow-lg flex flex-col z-10">
         <div class="p-4 border-b">
             <h1 class="text-xl font-bold text-gray-800">GeoAlerta</h1>
             <p class="text-sm text-gray-600">Datos cargados desde el repositorio.</p>
@@ -76,7 +52,11 @@
         </div>
 
         <div class="flex-1 p-4 overflow-y-auto">
-            <h2 class="font-semibold text-gray-800 mb-2">Alertas de Proximidad</h2>
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="font-semibold text-gray-800">Alertas de Proximidad</h2>
+                <button id="paste-coords" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-200 transition-colors">Pegar</button>
+            </div>
+            
             <p class="text-sm text-gray-500 mb-3" id="alerts-instructions">Cargando datos de Tareas y Postes...</p>
             <div id="alerts-panel" class="space-y-3">
                 <div class="text-center text-gray-400 italic" id="alerts-placeholder">Cargando datos...</div>
@@ -84,11 +64,11 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v2.1
+            App GeoAlerta v2.4 (Link corregido)
         </div>
     </aside>
 
-    <main class="flex-1 h-full w-full">
+    <main class="flex-1 h-[60vh] sm:h-full w-full">
         <div id="map"></div>
     </main>
 
@@ -104,15 +84,15 @@
         let proximityPolesLayerGroup = L.layerGroup();
         let proximityTaskLayerGroup = L.layerGroup();
         let proximityMarker = null;
-
         let isDataLoaded = false;
         let pendingSharedLatLng = null;
 
-        
-// --- Nombres de archivos en el repositorio (VERSIÓN CORREGIDA .XLSX) ---
-const TASK_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
-const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/Postes.xlsx';
+        // --- Nombres de archivos en el repositorio (VERSIÓN CORREGIDA) ---
+        // Archivo de tareas (pequeño) usa 'raw', Archivo de postes (grande) usa 'media'
+        const TASK_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
+        const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/Postes.xlsx';
 
+        // --- Constantes de Radios ---
         const PROXIMITY_RADIUS = 50;
         const CUSTODY_RADIUS = 200;
         const POLE_RADIUS = 100;
@@ -154,6 +134,7 @@ const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/ma
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             document.getElementById('toggle-tasks').addEventListener('change', toggleLayers);
+            document.getElementById('paste-coords').addEventListener('click', handlePaste);
             
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js')
@@ -190,8 +171,24 @@ const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/ma
         function onMapClick(e) {
             triggerAlertsAt(e.latlng, "Clic en mapa");
         }
+
+        // --- Función Pegar ---
+        async function handlePaste() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    showNotification("Texto pegado desde portapapeles.", "info");
+                    handleSharedURL(text); 
+                } else {
+                    showNotification("El portapapeles está vacío.", "error");
+                }
+            } catch (err) {
+                console.error('Fallo al leer el portapapeles: ', err);
+                showNotification("No se pudo leer el portapapeles. Asegúrate de dar permiso.", "error");
+            }
+        }
         
-        // --- Lógica de Share Target ---
+        // --- Lógica de Share/Paste ---
         function handleSharedURL(text) {
             let lat, lng;
             const coordRegex = /(-?\d{2}\.\d+)[,\s]+(-?\d{2}\.\d+)/;
@@ -206,7 +203,7 @@ const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/ma
                     const sharedLatLng = L.latLng(lat, lng);
                     
                     if (isDataLoaded) {
-                        triggerAlertsAt(sharedLatLng, "Share");
+                        triggerAlertsAt(sharedLatLng, "Share/Paste");
                     } else {
                         pendingSharedLatLng = sharedLatLng;
                         showNotification("Datos en carga. Mostrando alertas en breve...", "info");
@@ -231,9 +228,9 @@ const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/ma
 
             findNearbyAlerts(latlng);
             
-            if (source === "Share") {
-                showNotification("Alertas cargadas desde 'Compartir'.", "success");
-                document.getElementById('alerts-instructions').innerText = "Mostrando alertas para el punto compartido. Haz clic en otro punto para escanear.";
+            if (source === "Share/Paste") {
+                showNotification("Alertas cargadas desde 'Compartir' o 'Pegar'.", "success");
+                document.getElementById('alerts-instructions').innerText = "Mostrando alertas para el punto. Haz clic en otro punto para escanear.";
             } else {
                  document.getElementById('alerts-instructions').innerText = "Haz clic en el mapa para escanear.";
             }
@@ -252,33 +249,33 @@ const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/ma
 
                 isDataLoaded = true;
                 showNotification("Datos de Tareas y Postes cargados.", "success");
-                document.getElementById('alerts-instructions').innerText = "¡Listo! Haz clic en el mapa o comparte desde FSM/Maps.";
-                document.getElementById('alerts-placeholder').innerText = "Esperando clic en el mapa...";
+                document.getElementById('alerts-instructions').innerText = "¡Listo! Haz clic, comparte o pega coordenadas.";
+                document.getElementById('alerts-placeholder').innerText = "Esperando acción...";
 
                 if (pendingSharedLatLng) {
-                    triggerAlertsAt(pendingSharedLatLng, "Share");
+                    triggerAlertsAt(pendingSharedLatLng, "Share/Paste");
                     pendingSharedLatLng = null;
                 }
 
             } catch (error) {
                 console.error("Error al cargar datos del repositorio:", error);
-                showNotification(`Error fatal al cargar archivos: ${error.message}. Revisa los nombres.`, "error");
+                showNotification(`Error fatal al cargar archivos: ${error.message}.`, "error");
                 document.getElementById('alerts-instructions').innerText = "Error al cargar datos.";
                 document.getElementById('alerts-placeholder').innerText = "Error al cargar datos. Refresca la app.";
             }
         }
-               /**
- * Carga y parsea el archivo de Tareas (AHORA COMO XLSX)
- */
-async function loadTaskFile(url) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`No se encontró ${url}`);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' }); // <-- ESTO SÍ LEE EXCEL
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    return XLSX.utils.sheet_to_json(worksheet);
-}
+
+        // --- (MODIFICADA PARA LEER .XLSX) ---
+        async function loadTaskFile(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`No se encontró ${url}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            return XLSX.utils.sheet_to_json(worksheet);
+        }
+
         async function loadPoleFile(url) {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`No se encontró ${url}`);
@@ -289,7 +286,7 @@ async function loadTaskFile(url) {
             return XLSX.utils.sheet_to_json(worksheet);
         }
 
-        // --- Funciones de Procesamiento de Datos ---
+// --- Funciones de Procesamiento de Datos (Sin cambios) ---
         function processTaskData(data) {
             allTasks = [];
             data.forEach(row => {
@@ -368,7 +365,7 @@ async function loadTaskFile(url) {
             }
         }
 
-        // --- Funciones del "Alertador" ---
+        // --- Funciones del "Alertador" (Sin cambios) ---
         function findNearbyAlerts(clickedLatLng) {
             const alertsPanel = document.getElementById('alerts-panel');
             alertsPanel.innerHTML = '';
@@ -445,16 +442,4 @@ async function loadTaskFile(url) {
         }
     </script>
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
-
-
