@@ -2,7 +2,7 @@
   "name": "GeoAlerta",
   "short_name": "GeoAlerta",
   "description": "GeoAlerta - Visor de alertas de proximidad para tareas.",
-  "start_url": "mapa_alertas_pwa.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
@@ -27,4 +27,5 @@
       "url": "url"
     }
   }
+
 }
