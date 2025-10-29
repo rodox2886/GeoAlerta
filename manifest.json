@@ -18,9 +18,10 @@
       "type": "image/svg+xml"
     }
   ],
-  "share_target": {
+"share_target": {
     "action": "index.html",
     "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
     "params": {
       "title": "title",
       "text": "text",
@@ -29,4 +30,5 @@
   }
 
 }
+
 
