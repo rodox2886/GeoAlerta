@@ -31,6 +31,21 @@
         .leaflet-container { cursor: crosshair !important; }
         .notification { transition: all 0.5s ease-in-out; opacity: 1; }
         .notification.fade-out { opacity: 0; transform: translateX(100%); }
+        /* Estilo para el marcador del <details> */
+        summary::marker {
+            content: '▶ ';
+            font-size: 0.8em;
+        }
+        details[open] summary::marker {
+            content: '▼ ';
+        }
+        /* Ocultar marcador en Chrome/Safari */
+        summary {
+            list-style: none; /* Safari */
+        }
+        summary::-webkit-details-marker {
+            display: none; /* Chrome */
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col sm:flex-row h-screen overflow-hidden">
@@ -67,7 +82,7 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v3.0 (URLs Corregidas)
+            App GeoAlerta v3.2 (Grupos)
         </div>
     </aside>
 
@@ -84,15 +99,15 @@
         let allTasks = [];
         let allPoles = [];
         let taskLayerGroup = L.layerGroup();
-        let proximityPolesLayerGroup = L.layerGroup();
+        // --- ELIMINADA: proximityPolesLayerGroup ---
         let proximityTaskLayerGroup = L.layerGroup();
         let proximityMarker = null;
         let isDataLoaded = false;
         let pendingSharedLatLng = null;
 
         // --- NOMBRES DE ARCHIVO (URLs de "View Raw" del usuario) ---
-        const TASK_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
-        const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/Postes.xlsx';
+        const TASK_FILE_NAME = 'https://github.com/rodox2886/GeoAlerta/raw/refs/heads/main/LMZ%20Octubre.xlsx';
+        const POLE_FILE_NAME = 'https://github.com/rodox2886/GeoAlerta/raw/refs/heads/main/Postes.xlsx';
 
         // --- Constantes de Radios ---
         const PROXIMITY_RADIUS = 50;
@@ -123,10 +138,7 @@
             html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-red-600 drop-shadow-lg"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.74a3.25 3.25 0 0 1-2.598 4.875H4.644a3.25 3.25 0 0 1-2.598-4.875L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" /></svg>`,
             className: 'bg-transparent border-0', iconSize: [24, 24], iconAnchor: [12, 24]
         });
-        const poleIcon = L.divIcon({
-            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-blue-600 drop-shadow-lg"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" clip-rule="evenodd" /></svg>`,
-            className: 'bg-transparent border-0', iconSize: [24, 24], iconAnchor: [12, 24]
-        });
+        // --- ELIMINADO: poleIcon ---
         const clickIcon = L.divIcon({
             html: `<div class="w-4 h-4 bg-yellow-400 border-2 border-black rounded-full shadow-lg opacity-80"></div>`,
             className: 'bg-transparent border-0', iconSize: [16, 16], iconAnchor: [8, 8]
@@ -163,7 +175,7 @@
                 attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             }).addTo(map);
 
-            proximityPolesLayerGroup.addTo(map);
+            // --- ELIMINADO: proximityPolesLayerGroup.addTo(map); ---
             proximityTaskLayerGroup.addTo(map);
             map.on('click', onMapClick);
             
@@ -254,7 +266,7 @@
         // --- Función de Alertas ---
         function triggerAlertsAt(latlng, source = "mapa") {
             if (proximityMarker) map.removeLayer(proximityMarker);
-            proximityPolesLayerGroup.clearLayers();
+            // --- ELIMINADO: proximityPolesLayerGroup.clearLayers(); ---
             proximityTaskLayerGroup.clearLayers();
 
             proximityMarker = L.marker(latlng, { icon: clickIcon, zIndexOffset: 1000 }).addTo(map);
@@ -287,7 +299,7 @@
                 ]);
 
                 processTaskData(taskData);
-                processPoleData(poleData);
+                processPoleData(poleData); // Seguimos procesando postes en memoria, por si acaso
 
                 isDataLoaded = true;
                 showNotification("Datos de Tareas y Postes cargados.", "success");
@@ -435,77 +447,126 @@
             }
         }
 
-        // --- Funciones del "Alertador" (Sin cambios) ---
+        // --- Funciones del "Alertador" (MODIFICADAS) ---
+
+        /**
+         * Función principal: Busca tareas, las agrupa y las muestra.
+         */
         function findNearbyAlerts(clickedLatLng) {
             const alertsPanel = document.getElementById('alerts-panel');
             alertsPanel.innerHTML = '';
-            let foundAlerts = 0;
+            proximityTaskLayerGroup.clearLayers(); // Limpiar marcadores de tareas anteriores
 
-            allPoles.forEach(pole => {
-                const distance = clickedLatLng.distanceTo(pole.latlng);
-                if (distance <= POLE_RADIUS) {
-                    foundAlerts++;
-                    alertsPanel.appendChild(createPoleAlertCard(pole, distance, POLE_RADIUS));
-                    const popupContent = `<div class="w-64"><h3 class="font-bold text-blue-700">Poste: ${pole.id}</h3><p class="text-sm"><strong>Desc:</strong> ${pole.desc}</p><p class="text-sm"><strong>Calle:</strong> ${pole.calle} ${pole.altura}</p><hr class="my-1"><p class="text-sm font-medium bg-blue-50 p-1 rounded"><strong>¡Atención!</strong> Poste de 11m, probable necesidad de hidroelevador.</p></div>`;
-                    L.marker(pole.latlng, { icon: poleIcon }).bindPopup(popupContent).addTo(proximityPolesLayerGroup);
-                }
-            });
+            // --- 1. Agrupar Tareas ---
+            let taskGroups = {};
+            let foundTasks = 0;
 
             allTasks.forEach(task => {
                 const distance = clickedLatLng.distanceTo(task.latlng);
+                
                 const keywords = analyzeKeywords(task.obs);
                 const needsCustody = keywords.includes('CUSTODIA');
                 const mentionsPole11m = keywords.includes('POSTE 11m') || keywords.includes('HIDRO');
                 let effectiveRadius = PROXIMITY_RADIUS;
                 if (needsCustody) effectiveRadius = CUSTODY_RADIUS;
                 else if (mentionsPole11m) effectiveRadius = POLE_RADIUS;
-                
+
                 if (distance <= effectiveRadius) {
-                    foundAlerts++;
-                    alertsPanel.appendChild(createTaskAlertCard(task, distance, effectiveRadius));
+                    foundTasks++; // Contar tareas totales
+                    
+                    // --- Añadir marcador al mapa ---
                     const popupContent = `<div class="w-64"><h3 class="font-bold text-red-700">Tarea: ${task.id}</h3><p class="text-sm"><strong>Dirección:</strong> ${task.direccion}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><hr class="my-1"><p class="text-sm font-medium"><strong>Observaciones:</strong></p><p class="text-sm italic bg-red-50 p-1 rounded">${task.obs}</p></div>`;
-                    L.marker(task.latlng, { icon: taskIcon }).bindPopup(popupContent).addTo(proximityTaskLayerGroup);
+                    L.marker(task.latlng, { icon: taskIcon })
+                        .bindPopup(popupContent)
+                        .addTo(proximityTaskLayerGroup);
+
+                    // --- Añadir a grupos para el panel ---
+                    keywords.forEach(kw => {
+                        if (!taskGroups[kw]) {
+                            taskGroups[kw] = []; // Inicializar array
+                        }
+                        taskGroups[kw].push(task); // Añadir la tarea
+                    });
                 }
             });
 
-            if (foundAlerts === 0) {
-                alertsPanel.innerHTML = `<div class="text-center text-gray-500 italic">No se encontraron alertas en los radios de búsqueda.</div>`;
+            // --- 2. Renderizar Grupos ---
+            if (foundTasks === 0) {
+                alertsPanel.innerHTML = `<div class="text-center text-gray-500 italic">No se encontraron tareas con alertas en los radios de búsqueda.</div>`;
+                return;
             }
+
+            const sortedKeywords = Object.keys(taskGroups).sort();
+            
+            sortedKeywords.forEach(keyword => {
+                const tasks = taskGroups[keyword];
+                const groupCard = createTaskGroupCard(keyword, tasks); // Nueva función
+                alertsPanel.appendChild(groupCard);
+            });
         }
 
-        function createPoleAlertCard(pole, distance, effectiveRadius) {
-            const el = document.createElement('div');
-            el.className = 'bg-white border-l-4 border-blue-500 p-3 rounded-r-lg shadow';
-            const radiusText = ` <span class="font-bold text-blue-700">(Detectado en radio ${effectiveRadius}m)</span>`;
-            el.innerHTML = `<h4 class="font-bold text-blue-700">POSTE 11m CERCANO</h4><p class="text-sm text-gray-600">A ${distance.toFixed(0)}m de distancia${radiusText}.</p><p class="text-sm mt-1"><strong>ID:</strong> ${pole.id}</p><p class="text-sm"><strong>Desc:</strong> ${pole.desc}</p><p class="text-sm font-semibold text-blue-800 bg-blue-100 p-2 mt-2 rounded">Requerimiento probable: HIDROELEVADOR</p>`;
+        /**
+         * NUEVA: Crea una tarjeta de grupo colapsable (<details>)
+         */
+        function createTaskGroupCard(keyword, tasks) {
+            const el = document.createElement('details');
+            el.className = 'bg-white rounded-lg shadow overflow-hidden';
+            
+            // Definir color/icono por keyword
+            let headerColor = 'bg-gray-100 text-gray-800'; // default
+            if (keyword === 'CUSTODIA') headerColor = 'bg-red-100 text-red-800';
+            if (keyword === 'HIDRO' || keyword === 'POSTE 11m') headerColor = 'bg-blue-100 text-blue-800';
+            if (keyword === 'POSTE 7.5m') headerColor = 'bg-yellow-100 text-yellow-800';
+
+            const summary = document.createElement('summary');
+            summary.className = `p-3 font-semibold ${headerColor} cursor-pointer flex justify-between items-center transition-colors hover:bg-gray-200`;
+            summary.innerHTML = `
+                <span class="flex items-center">
+                    <span class="mr-2">${keyword === 'CUSTODIA' ? '🚨' : (keyword.includes('POSTE') ? '💡' : '🔧')}</span>
+                    ${keyword}
+                </span>
+                <span class="text-sm font-normal px-2 bg-white rounded-full">${tasks.length} Tarea(s)</span>
+            `;
+            el.appendChild(summary);
+
+            // --- 2. Crear el contenido (la lista de tareas) ---
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'p-3 space-y-2 border-t border-gray-200 bg-white';
+            
+            tasks.forEach(task => {
+                const taskCard = createSimpleTaskCard(task); // Usar una función helper
+                contentDiv.appendChild(taskCard);
+            });
+            
+            el.appendChild(contentDiv);
             return el;
         }
 
-        function createTaskAlertCard(task, distance, effectiveRadius) {
+        /**
+         * NUEVA: Crea una tarjeta simple para una tarea individual (va dentro del grupo)
+         */
+        function createSimpleTaskCard(task) {
             const el = document.createElement('div');
-            el.className = 'bg-white border-l-4 border-red-500 p-3 rounded-r-lg shadow';
+            el.className = 'bg-gray-50 p-2 rounded-md border border-gray-200';
+            
+            // Analizar keywords solo para el horario de CUSTODIA
             const keywords = analyzeKeywords(task.obs);
-            let keywordHTML = '';
-            if (keywords.length > 0) {
-                const keywordsWithTime = keywords.map(kw => {
-                    // Solo añade horario si 'plannedTime' existe y no es 'N/A'
-                    if (kw === 'CUSTODIA' && task.plannedTime && task.plannedTime !== 'N/A') {
-                        return `<span class="font-bold">CUSTODIA (Horario: ${task.plannedTime})</span>`;
-                    }
-                    return kw;
-                });
-                keywordHTML = `<p class="text-sm font-semibold text-red-800 bg-red-100 p-2 mt-2 rounded">Requerimientos detectados: ${keywordsWithTime.join(', ')}</p>`;
-            } else {
-                 keywordHTML = `<p class="text-sm font-semibold text-gray-800 bg-gray-100 p-2 mt-2 rounded">Sin requerimientos especiales detectados en obs.</p>`;
+            let timeHTML = '';
+            if (keywords.includes('CUSTODIA') && task.plannedTime && task.plannedTime !== 'N/A') {
+                timeHTML = `<span class="font-bold text-red-700 ml-2">(Horario: ${task.plannedTime})</span>`;
             }
-            let radiusText = '';
-            if (effectiveRadius === CUSTODY_RADIUS) radiusText = ` <span class="font-bold text-red-700">(Detectado en radio ${CUSTODY_RADIUS}m)</span>`;
-            else if (effectiveRadius === POLE_RADIUS) radiusText = ` <span class="font-bold text-blue-700">(Detectado en radio ${POLE_RADIUS}m por mención de poste/hidro)</span>`;
-            el.innerHTML = `<h4 class="font-bold text-red-700">TAREA CERCANA</h4><p class="text-sm text-gray-600">A ${distance.toFixed(0)}m de distancia${radiusText}.</p><p class="text-sm mt-1"><strong>ID:</strong> ${task.id}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><p class="text-sm mt-1"><strong>Observaciones:</strong></p><p class="text-xs italic bg-gray-50 p-1 rounded">${task.obs}</p>${keywordHTML}`;
+
+            el.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h5 class="font-bold text-sm text-gray-700">ID Tarea: ${task.id} ${timeHTML}</h5>
+                </div>
+                <p class="text-xs mt-1"><strong>Causal:</strong> ${task.causal}</p>
+                <p class="text-xs mt-1"><strong>Obs:</strong> <em class="italic">${task.obs}</em></p>
+            `;
             return el;
         }
 
-
+        // --- (Sin cambios) ---
         function analyzeKeywords(text) {
             if (!text) return [];
             const lowerText = text.toLowerCase();
@@ -520,4 +581,3 @@
     </script>
 </body>
 </html>
-
