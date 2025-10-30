@@ -67,7 +67,7 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v2.9 (Última Prueba URLs)
+            App GeoAlerta v3.0 (URLs Corregidas)
         </div>
     </aside>
 
@@ -90,10 +90,9 @@
         let isDataLoaded = false;
         let pendingSharedLatLng = null;
 
-        // --- NOMBRES DE ARCHIVO CORRECTOS (USANDO MEDIA PARA AMBOS) ---
-        // Asegúrate que los nombres coincidan EXACTAMENTE con tus archivos en GitHub
-        const TASK_FILE_NAME = 'https://media.githubusercontent.com/media/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
-        const POLE_FILE_NAME = 'https://media.githubusercontent.com/media/rodox2886/GeoAlerta/main/Postes.xlsx';
+        // --- NOMBRES DE ARCHIVO (URLs de "View Raw" del usuario) ---
+        const TASK_FILE_NAME = 'https://github.com/rodox2886/GeoAlerta/raw/refs/heads/main/LMZ%20Octubre.xlsx';
+        const POLE_FILE_NAME = 'https://github.com/rodox2886/GeoAlerta/raw/refs/heads/main/Postes.xlsx';
 
         // --- Constantes de Radios ---
         const PROXIMITY_RADIUS = 50;
@@ -303,7 +302,7 @@
             } catch (error) {
                 console.error("Error al cargar datos del repositorio:", error);
                 // Mostrar el error completo en la notificación para depurar
-                showNotification(`Error fatal al cargar: ${error.message}. URL: ${error.url || 'N/A'}`, "error");
+                showNotification(`Error fatal al cargar: ${error.message}.`, "error");
                 document.getElementById('alerts-instructions').innerText = "Error al cargar datos.";
                 document.getElementById('alerts-placeholder').innerText = "Error al cargar datos. Refresca la app.";
             }
