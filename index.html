@@ -67,7 +67,7 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v2.7 (XLSX Definitivo)
+            App GeoAlerta v2.8 (Media/Media)
         </div>
     </aside>
 
@@ -90,8 +90,8 @@
         let isDataLoaded = false;
         let pendingSharedLatLng = null;
 
-        // --- NOMBRES DE ARCHIVO CORRECTOS (XLSX con raw, XLSX grande con media) ---
-        const TASK_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
+        // --- NOMBRES DE ARCHIVO CORRECTOS (USANDO MEDIA PARA AMBOS) ---
+        const TASK_FILE_NAME = 'https://media.githubusercontent.com/media/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
         const POLE_FILE_NAME = 'https://media.githubusercontent.com/media/rodox2886/GeoAlerta/main/Postes.xlsx';
 
         // --- Constantes de Radios ---
@@ -299,12 +299,12 @@
             }
         }
 
-        // --- VOLVEMOS A XLSX.READ (para Excel) ---
+        // --- FUNCIÓN PARA LEER XLSX ---
         async function loadTaskFile(url) {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`No se encontró ${url}`);
             const arrayBuffer = await response.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' }); // <-- VOLVEMOS A XLSX.READ
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' }); 
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             return XLSX.utils.sheet_to_json(worksheet);
