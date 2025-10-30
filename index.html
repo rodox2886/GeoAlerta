@@ -52,12 +52,9 @@
         </div>
 
         <div class="flex-1 p-4 overflow-y-auto">
-            <div class="flex justify-between items-center mb-2 gap-2">
-                <h2 class="font-semibold text-gray-800 shrink-0">Alertas Proximidad</h2>
-                <div class="flex gap-2">
-                    <button id="locate-me" class="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200 transition-colors">Ubicación</button>
-                    <button id="paste-coords" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-200 transition-colors">Pegar</button>
-                </div>
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="font-semibold text-gray-800">Alertas de Proximidad</h2>
+                <button id="paste-coords" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-200 transition-colors">Pegar</button>
             </div>
             
             <p class="text-sm text-gray-500 mb-3" id="alerts-instructions">Cargando datos de Tareas y Postes...</p>
@@ -67,7 +64,7 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v2.5 (con Ubicación)
+            App GeoAlerta v2.4 (Link corregido)
         </div>
     </aside>
 
@@ -90,8 +87,8 @@
         let isDataLoaded = false;
         let pendingSharedLatLng = null;
 
-
-// --- Nombres de archivos en el repositorio ---
+        // --- Nombres de archivos en el repositorio (VERSIÓN CORREGIDA) ---
+        // Archivo de tareas (pequeño) usa 'raw', Archivo de postes (grande) usa 'media'
         const TASK_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
         const POLE_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/Postes.xlsx';
 
@@ -138,8 +135,6 @@
             initMap();
             document.getElementById('toggle-tasks').addEventListener('change', toggleLayers);
             document.getElementById('paste-coords').addEventListener('click', handlePaste);
-            // --- NUEVO: Listener para el botón Ubicación ---
-            document.getElementById('locate-me').addEventListener('click', handleLocateMe);
             
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js')
@@ -177,51 +172,6 @@
             triggerAlertsAt(e.latlng, "Clic en mapa");
         }
 
-        // --- NUEVA FUNCIÓN: Obtener Ubicación Actual ---
-        function handleLocateMe() {
-            if (!navigator.geolocation) {
-                showNotification("La geolocalización no es soportada por tu navegador.", "error");
-                return;
-            }
-
-            showNotification("Obteniendo tu ubicación...", "info");
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const userLatLng = L.latLng(lat, lng);
-
-                    showNotification("Ubicación obtenida. Buscando alertas...", "success");
-                    
-                    if (isDataLoaded) {
-                        triggerAlertsAt(userLatLng, "Action"); // Usamos "Action"
-                    } else {
-                        // Si los datos aún no cargan, espera
-                        pendingSharedLatLng = userLatLng;
-                        document.getElementById('alerts-instructions').innerText = "Cargando datos... Alertas de ubicación pendientes.";
-                    }
-                },
-                (error) => {
-                    console.error("Error de geolocalización: ", error);
-                    let msg = "No se pudo obtener la ubicación.";
-                    if (error.code === error.PERMISSION_DENIED) {
-                        msg = "Permiso de ubicación denegado.";
-                    } else if (error.code === error.POSITION_UNAVAILABLE) {
-                        msg = "Información de ubicación no disponible.";
-                    } else if (error.code === error.TIMEOUT) {
-                        msg = "Tiempo de espera agotado al obtener ubicación.";
-                    }
-                    showNotification(msg, "error");
-                },
-                {
-                    enableHighAccuracy: true, // Pide la mejor precisión posible
-                    timeout: 10000, // 10 segundos de tiempo límite
-                    maximumAge: 0 // No usar una ubicación antigua en caché
-                }
-            );
-        }
-
         // --- Función Pegar ---
         async function handlePaste() {
             try {
@@ -253,7 +203,7 @@
                     const sharedLatLng = L.latLng(lat, lng);
                     
                     if (isDataLoaded) {
-                        triggerAlertsAt(sharedLatLng, "Action"); // Usamos "Action"
+                        triggerAlertsAt(sharedLatLng, "Share/Paste");
                     } else {
                         pendingSharedLatLng = sharedLatLng;
                         showNotification("Datos en carga. Mostrando alertas en breve...", "info");
@@ -267,7 +217,7 @@
             }
         }
         
-        // --- Función de Alertas (MODIFICADA) ---
+        // --- Función de Alertas ---
         function triggerAlertsAt(latlng, source = "mapa") {
             if (proximityMarker) map.removeLayer(proximityMarker);
             proximityPolesLayerGroup.clearLayers();
@@ -278,11 +228,10 @@
 
             findNearbyAlerts(latlng);
             
-            // "Action" ahora cubre Pegar, Compartir y Ubicación
-            if (source === "Action") { 
-                showNotification("Alertas cargadas para el punto.", "success");
+            if (source === "Share/Paste") {
+                showNotification("Alertas cargadas desde 'Compartir' o 'Pegar'.", "success");
                 document.getElementById('alerts-instructions').innerText = "Mostrando alertas para el punto. Haz clic en otro punto para escanear.";
-            } else { // "Clic en mapa"
+            } else {
                  document.getElementById('alerts-instructions').innerText = "Haz clic en el mapa para escanear.";
             }
         }
@@ -304,7 +253,7 @@
                 document.getElementById('alerts-placeholder').innerText = "Esperando acción...";
 
                 if (pendingSharedLatLng) {
-                    triggerAlertsAt(pendingSharedLatLng, "Action"); // Usamos "Action"
+                    triggerAlertsAt(pendingSharedLatLng, "Share/Paste");
                     pendingSharedLatLng = null;
                 }
 
@@ -337,7 +286,7 @@
             return XLSX.utils.sheet_to_json(worksheet);
         }
 
-        // --- Funciones de Procesamiento de Datos (Sin cambios) ---
+// --- Funciones de Procesamiento de Datos (Sin cambios) ---
         function processTaskData(data) {
             allTasks = [];
             data.forEach(row => {
@@ -494,7 +443,3 @@
     </script>
 </body>
 </html>
-
-
-
-
