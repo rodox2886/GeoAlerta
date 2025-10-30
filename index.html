@@ -67,7 +67,7 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v2.8 (Media/Media)
+            App GeoAlerta v2.9 (Última Prueba URLs)
         </div>
     </aside>
 
@@ -91,6 +91,7 @@
         let pendingSharedLatLng = null;
 
         // --- NOMBRES DE ARCHIVO CORRECTOS (USANDO MEDIA PARA AMBOS) ---
+        // Asegúrate que los nombres coincidan EXACTAMENTE con tus archivos en GitHub
         const TASK_FILE_NAME = 'https://media.githubusercontent.com/media/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
         const POLE_FILE_NAME = 'https://media.githubusercontent.com/media/rodox2886/GeoAlerta/main/Postes.xlsx';
 
@@ -273,9 +274,17 @@
         // --- Carga de Datos desde Repositorio ---
         async function loadDataFromRepo() {
             try {
+                // Añadir timestamp para intentar evitar caché
+                const timestamp = Date.now();
+                const taskUrl = `${TASK_FILE_NAME}?t=${timestamp}`;
+                const poleUrl = `${POLE_FILE_NAME}?t=${timestamp}`;
+
+                console.log("Intentando cargar:", taskUrl);
+                console.log("Intentando cargar:", poleUrl);
+
                 const [taskData, poleData] = await Promise.all([
-                    loadTaskFile(TASK_FILE_NAME),
-                    loadPoleFile(POLE_FILE_NAME)
+                    loadTaskFile(taskUrl),
+                    loadPoleFile(poleUrl)
                 ]);
 
                 processTaskData(taskData);
@@ -293,7 +302,8 @@
 
             } catch (error) {
                 console.error("Error al cargar datos del repositorio:", error);
-                showNotification(`Error fatal al cargar archivos: ${error.message}.`, "error");
+                // Mostrar el error completo en la notificación para depurar
+                showNotification(`Error fatal al cargar: ${error.message}. URL: ${error.url || 'N/A'}`, "error");
                 document.getElementById('alerts-instructions').innerText = "Error al cargar datos.";
                 document.getElementById('alerts-placeholder').innerText = "Error al cargar datos. Refresca la app.";
             }
@@ -301,24 +311,40 @@
 
         // --- FUNCIÓN PARA LEER XLSX ---
         async function loadTaskFile(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`No se encontró ${url}`);
-            const arrayBuffer = await response.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' }); 
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            return XLSX.utils.sheet_to_json(worksheet);
+            try {
+                const response = await fetch(url, { cache: "no-store" }); // Intentar deshabilitar caché
+                console.log(`Respuesta para ${url}: ${response.status}`);
+                 if (!response.ok) {
+                    throw new Error(`No se encontró ${url} (status: ${response.status})`);
+                 }
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' }); 
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                return XLSX.utils.sheet_to_json(worksheet);
+             } catch (error) {
+                 error.url = url; // Añadir la URL al objeto de error
+                 throw error;
+             }
         }
 
         // Esta función para leer Postes (Excel) sigue igual y está bien
         async function loadPoleFile(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`No se encontró ${url}`);
-            const arrayBuffer = await response.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            return XLSX.utils.sheet_to_json(worksheet);
+             try {
+                const response = await fetch(url, { cache: "no-store" }); // Intentar deshabilitar caché
+                console.log(`Respuesta para ${url}: ${response.status}`);
+                 if (!response.ok) {
+                     throw new Error(`No se encontró ${url} (status: ${response.status})`);
+                 }
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                return XLSX.utils.sheet_to_json(worksheet);
+            } catch (error) {
+                 error.url = url; // Añadir la URL al objeto de error
+                 throw error;
+             }
         }
 
         // --- Funciones de Procesamiento de Datos (Sin cambios) ---
