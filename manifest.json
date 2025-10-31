@@ -3,6 +3,7 @@
   "short_name": "GeoAlerta",
   "description": "GeoAlerta - Visor de alertas de proximidad para tareas.",
   "start_url": "index.html",
+  "display_override": ["standalone"],
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
@@ -30,5 +31,6 @@
   }
 
 }
+
 
 
