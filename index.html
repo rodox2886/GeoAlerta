@@ -1,21 +1,20 @@
-<!DOCTYPE html>
+        <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoAlerta</title>
     
-    <!-- Metas PWA -->
     <meta name="theme-color" content="#4f46e5"/>
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgMTkyIDE5MiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIHJ4PSIyNCIgZmlsbD0iIzRmNDZlNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0iY2VudHJhbCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiPkdBPC90ZXh0Pjwvc3ZnPg==">
     <link rel="manifest" href="manifest.json">
     
-    <!-- Scripts (CSS/JS Libs) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <style>
         /* Estilos CSS (Modificados para móvil) */
@@ -50,39 +49,27 @@
         }
     </style>
 </head>
-<!-- (Modificado para móvil) -->
 <body class="bg-gray-100 flex flex-col sm:flex-row h-screen overflow-hidden">
 
-    <!-- 
-      - En móvil (h-[40vh]): La barra lateral ocupa el 40% de la altura de la pantalla.
-      - En desktop (sm:h-screen): Vuelve a ocupar la altura completa.
-    -->
     <aside class="w-full sm:w-1/3 lg:w-1/4 xl:w-1/5 h-[40vh] sm:h-screen bg-white shadow-lg flex flex-col z-10">
-        <!-- Encabezado -->
         <div class="p-4 border-b">
             <h1 class="text-xl font-bold text-gray-800">GeoAlerta</h1>
             <p class="text-sm text-gray-600">Datos cargados desde el repositorio.</p>
         </div>
 
-        <!-- Sección de Capas (RESTAURADA Y MEJORADA) -->
         <div class="p-4 border-b">
             <h2 class="font-semibold text-gray-800 mb-2">Capas Globales</h2>
-            <!-- Checkbox original "Mostrar TODAS" -->
             <div class="flex items-center">
                 <input id="toggle-tasks" type="checkbox" class="h-4 w-4 text-gray-600 border-gray-300 rounded focus:ring-gray-500">
-                <label for="toggle-tasks" class="ml-2 block text-sm text-gray-900">Mostrar TODAS las Tareas</label>
+                <label for="toggle-tasks" class="ml-2 block text-sm text-gray-900">Mostrar TODAS las Tareas (Puntos)</label>
             </div>
             
             <h3 class="font-semibold text-gray-800 mt-3 mb-1 text-sm">Mapas de Calor (Categorías)</h3>
-            <!-- Los checkboxes de categorías se generarán aquí -->
             <div id="layer-toggles" class="space-y-1 max-h-24 overflow-y-auto">
                  <p class="text-xs text-gray-400 italic">Cargando categorías...</p>
             </div>
         </div>
 
-        <!-- 
-          Panel de Alertas (con 3 botones): 
-        -->
         <div class="flex-1 p-4 overflow-y-auto">
             <div class="flex justify-between items-center mb-2 gap-2">
                 <h2 class="font-semibold text-gray-800 shrink-0">Alertas Proximidad</h2>
@@ -99,33 +86,27 @@
             </div>
         </div>
 
-        <!-- Pie de página -->
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v3.6 (Capas Híbridas)
+            App GeoAlerta v3.7 (con Heatmaps)
         </div>
     </aside>
 
-    <!-- 
-      - En móvil (h-[60vh]): El mapa ocupa el 60% restante de la altura.
-      - En desktop (sm:h-full): Vuelve a ocupar la altura completa.
-    -->
     <main class="flex-1 h-[60vh] sm:h-full w-full">
         <div id="map"></div>
     </main>
 
-    <!-- Contenedor de Notificaciones -->
     <div id="notification-container" class="fixed bottom-4 right-4 z-[2000] w-80 space-y-3">
-        <!-- Las notificaciones se añadirán aquí -->
-    </div>
+        </div>
 
     <script>
         // --- Variables Globales ---
         let map;
-        let allTasks = []; // Almacenará { task, marker }
+        let allTasksData = []; // Solo los datos de tareas
         let allPoles = [];
         
-        let taskLayerGroup = L.layerGroup();         // Para "Mostrar TODAS"
-        let keywordLayerGroups = {};                 // Para "Mapas de Calor"
+        let taskLayerGroup = L.layerGroup();         // Para "Mostrar TODAS" (Puntos)
+        let keywordHeatData = {};                    // Para datos de heatmap [lat, lng]
+        let keywordHeatLayers = {};                  // Para los objetos L.heatLayer
         
         let proximityPolesLayerGroup = L.layerGroup(); 
         let proximityTaskLayerGroup = L.layerGroup();
@@ -180,7 +161,7 @@
         // --- Inicialización ---
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
-            document.getElementById('toggle-tasks').addEventListener('change', toggleAllTasksLayer); // <-- RESTAURADO
+            document.getElementById('toggle-tasks').addEventListener('change', toggleAllTasksLayer); 
             document.getElementById('paste-coords').addEventListener('click', handlePaste);
             document.getElementById('locate-me').addEventListener('click', handleLocateMe);
             document.getElementById('street-view').addEventListener('click', openStreetView);
@@ -211,7 +192,7 @@
 
             proximityPolesLayerGroup.addTo(map);
             proximityTaskLayerGroup.addTo(map);
-            // Las capas 'taskLayerGroup' y 'keywordLayerGroups' se añaden/quitan con checkboxes
+            // Las capas globales se gestionan por checkboxes
             
             map.on('click', onMapClick);
             
@@ -348,12 +329,10 @@
                     loadPoleFile(poleUrl)
                 ]);
 
-                // Procesa los datos y llena el array `allTasks`
                 processTaskData(taskData);
-                // Procesa los postes (solo para proximidad)
                 processPoleData(poleData); 
                 
-                // --- NUEVO: Popula las capas globales ---
+                // Popula las capas globales (de Puntos y de Calor)
                 populateGlobalLayers();
                 
                 // Crear los checkboxes de capas
@@ -416,7 +395,7 @@
 
         // --- Funciones de Procesamiento de Datos (MODIFICADA) ---
         function processTaskData(data) {
-            allTasks = []; // Limpiar
+            allTasksData = []; // Limpiar
             
             data.forEach(row => {
                 const latKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'coordenada 1');
@@ -448,18 +427,12 @@
                         plannedTime: plannedTime,
                         keywords: keywords // Guardar las keywords en la tarea
                     };
-                    
-                    // --- Crear el marcador UNA VEZ ---
-                    const popupContent = `<div class="w-64"><h3 class="font-bold text-red-700">Tarea: ${task.id}</h3><p class="text-sm"><strong>Dirección:</strong> ${task.direccion}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><hr class="my-1"><p class="text-sm font-medium"><strong>Observaciones:</strong></p><p class="text-sm italic bg-red-50 p-1 rounded">${task.obs}</p></div>`;
-                    const marker = L.marker(task.latlng, { icon: taskIcon }).bindPopup(popupContent);
-                    
-                    // Guardar la tarea y su marcador asociado
-                    allTasks.push({ task, marker });
+                    allTasksData.push(task);
                 }
             });
             
-            console.log(`Cargadas ${allTasks.length} tareas (con categorías).`);
-            if (allTasks.length === 0 && data.length > 0) {
+            console.log(`Cargadas ${allTasksData.length} tareas (con categorías).`);
+            if (allTasksData.length === 0 && data.length > 0) {
                 showNotification("No se encontraron tareas con palabras clave (Custodia, Hidro, etc.) en 'Observaciones'.", "info");
             }
         }
@@ -467,22 +440,25 @@
         // --- NUEVA FUNCIÓN: Poblar las capas globales ---
         function populateGlobalLayers() {
             taskLayerGroup.clearLayers();
-            keywordLayerGroups = {};
+            keywordHeatData = {}; // <-- Almacena los [lat,lng]
+            keywordHeatLayers = {}; // <-- Almacena los L.heatLayer
             
-            allTasks.forEach(({ task, marker }) => {
-                // 1. Añadir a la capa "Mostrar TODAS"
-                taskLayerGroup.addLayer(marker);
+            allTasksData.forEach((task) => {
+                // 1. Crear marcador para "Mostrar TODAS"
+                const popupContent = `<div class="w-64"><h3 class="font-bold text-red-700">Tarea: ${task.id}</h3><p class="text-sm"><strong>Dirección:</strong> ${task.direccion}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><hr class="my-1"><p class="text-sm font-medium"><strong>Observaciones:</strong></p><p class="text-sm italic bg-red-50 p-1 rounded">${task.obs}</p></div>`;
+                const marker = L.marker(task.latlng, { icon: taskIcon }).bindPopup(popupContent);
+                taskLayerGroup.addLayer(marker); // Añadir a la capa de Puntos
 
-                // 2. Añadir a las capas de categoría (mapas de calor)
+                // 2. Preparar datos para "Mapas de Calor"
                 task.keywords.forEach(kw => {
-                    if (!keywordLayerGroups[kw]) {
-                        keywordLayerGroups[kw] = L.layerGroup();
+                    if (!keywordHeatData[kw]) {
+                        keywordHeatData[kw] = [];
                     }
-                    keywordLayerGroups[kw].addLayer(marker);
+                    keywordHeatData[kw].push([task.latlng.lat, task.latlng.lng]); // Añadir Coordenadas
                 });
             });
             
-            console.log("Categorías encontradas:", Object.keys(keywordLayerGroups));
+            console.log("Categorías de Heatmap:", Object.keys(keywordHeatData));
         }
 
         function processPoleData(data) {
@@ -521,7 +497,7 @@
             const container = document.getElementById('layer-toggles');
             container.innerHTML = ''; // Limpiar "Cargando..."
             
-            const keywords = Object.keys(keywordLayerGroups).sort();
+            const keywords = Object.keys(keywordHeatData).sort();
             
             if (keywords.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-400 italic">No se encontraron categorías.</p>';
@@ -532,17 +508,23 @@
                 const div = document.createElement('div');
                 div.className = 'flex items-center';
                 
+                // Color temático para el checkbox
+                let colorClass = 'text-gray-600 focus:ring-gray-500';
+                if (keyword === 'CUSTODIA') colorClass = 'text-red-600 focus:ring-red-500';
+                if (keyword === 'HIDRO' || keyword === 'POSTE 11m') colorClass = 'text-blue-600 focus:ring-blue-500';
+                if (keyword === 'POSTE 7.5m') colorClass = 'text-yellow-600 focus:ring-yellow-500';
+
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.id = `toggle-${keyword}`; // ej: toggle-CUSTODIA
+                checkbox.id = `toggle-${keyword}`;
                 checkbox.value = keyword;
-                checkbox.className = 'h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500';
+                checkbox.className = `h-4 w-4 ${colorClass} border-gray-300 rounded`;
                 checkbox.addEventListener('change', onToggleKeywordLayer);
                 
                 const label = document.createElement('label');
                 label.htmlFor = `toggle-${keyword}`;
                 label.className = 'ml-2 block text-sm text-gray-900';
-                label.textContent = `Mostrar ${keyword}`;
+                label.textContent = `Mostrar ${keyword} (Calor)`;
                 
                 div.appendChild(checkbox);
                 div.appendChild(label);
@@ -550,21 +532,33 @@
             });
         }
         
-        // --- NUEVA: Handler para los checkboxes de categoría ---
+        // --- MODIFICADA: Handler para los checkboxes (ahora crea L.heatLayer) ---
         function onToggleKeywordLayer(e) {
             const keyword = e.target.value;
-            const layer = keywordLayerGroups[keyword];
-            
-            if (!layer) return;
+            let layer = keywordHeatLayers[keyword]; // Busca la capa de calor existente
             
             if (e.target.checked) {
-                map.addLayer(layer);
+                if (!layer) {
+                    // Si no existe, la crea
+                    const coords = keywordHeatData[keyword];
+                    if (!coords || coords.length === 0) return;
+                    
+                    layer = L.heatLayer(coords, {
+                        radius: 25,
+                        blur: 20,
+                        maxZoom: 18
+                    });
+                    keywordHeatLayers[keyword] = layer; // Guarda la capa creada
+                }
+                map.addLayer(layer); // Añade al mapa
             } else {
-                map.removeLayer(layer);
+                if (layer) {
+                    map.removeLayer(layer); // Quita del mapa
+                }
             }
         }
         
-        // --- NUEVA: Handler para el checkbox "Mostrar TODAS" ---
+        // --- Handler para el checkbox "Mostrar TODAS" (Puntos) ---
         function toggleAllTasksLayer(e) {
             if (e.target.checked) {
                 map.addLayer(taskLayerGroup);
@@ -598,7 +592,7 @@
             let taskGroups = {};
             let foundTasks = 0;
 
-            allTasks.forEach(({ task, marker }) => { // <-- Desestructurar para obtener la tarea y su marcador
+            allTasksData.forEach((task) => { // Iterar sobre los datos de tareas
                 const distance = clickedLatLng.distanceTo(task.latlng);
                 
                 const keywords = task.keywords; // Usar keywords ya guardadas
@@ -611,8 +605,12 @@
                 if (distance <= effectiveRadius) {
                     foundTasks++; // Contar tareas totales
                     
-                    // --- Añadir el MARCADOR EXISTENTE al mapa de proximidad ---
-                    proximityTaskLayerGroup.addLayer(marker);
+                    // --- Añadir marcador al mapa de proximidad ---
+                    // (Creamos un nuevo marcador solo para esta capa temporal)
+                    const popupContent = `<div class="w-64"><h3 class="font-bold text-red-700">Tarea: ${task.id}</h3><p class="text-sm"><strong>Dirección:</strong> ${task.direccion}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><hr class="my-1"><p class="text-sm font-medium"><strong>Observaciones:</strong></p><p class="text-sm italic bg-red-50 p-1 rounded">${task.obs}</p></div>`;
+                    L.marker(task.latlng, { icon: taskIcon })
+                        .bindPopup(popupContent)
+                        .addTo(proximityTaskLayerGroup);
 
                     // --- Añadir a grupos para el panel ---
                     keywords.forEach(kw => {
@@ -643,7 +641,7 @@
         }
 
         /**
-         * NUEVA: Crea una tarjeta de grupo colapsable (<details>)
+         * Crea una tarjeta de grupo colapsable (<details>)
          */
         function createTaskGroupCard(keyword, tasks) {
             const el = document.createElement('details');
@@ -680,7 +678,7 @@
         }
 
         /**
-         * NUEVA: Crea una tarjeta simple para una tarea individual (va dentro del grupo)
+         * Crea una tarjeta simple para una tarea individual (va dentro del grupo)
          */
         function createSimpleTaskCard(task) {
             const el = document.createElement('div');
