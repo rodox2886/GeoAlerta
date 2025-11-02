@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoAlerta</title>
     
+    <!-- Metas PWA -->
     <meta name="theme-color" content="#4f46e5"/>
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgMTkyIDE5MiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIHJ4PSIyNCIgZmlsbD0iIzRmNDZlNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0iY2VudHJhbCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiPkdBPC90ZXh0Pjwvc3ZnPg==">
     <link rel="manifest" href="manifest.json">
     
+    <!-- Scripts (CSS/JS Libs) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -48,24 +50,39 @@
         }
     </style>
 </head>
+<!-- (Modificado para móvil) -->
 <body class="bg-gray-100 flex flex-col sm:flex-row h-screen overflow-hidden">
 
+    <!-- 
+      - En móvil (h-[40vh]): La barra lateral ocupa el 40% de la altura de la pantalla.
+      - En desktop (sm:h-screen): Vuelve a ocupar la altura completa.
+    -->
     <aside class="w-full sm:w-1/3 lg:w-1/4 xl:w-1/5 h-[40vh] sm:h-screen bg-white shadow-lg flex flex-col z-10">
+        <!-- Encabezado -->
         <div class="p-4 border-b">
             <h1 class="text-xl font-bold text-gray-800">GeoAlerta</h1>
             <p class="text-sm text-gray-600">Datos cargados desde el repositorio.</p>
         </div>
 
+        <!-- Sección de Capas (RESTAURADA Y MEJORADA) -->
         <div class="p-4 border-b">
-            <h2 class="font-semibold text-gray-800 mb-2">Capas</h2>
-            <div class="space-y-2">
-                <div class="flex items-center">
-                    <input id="toggle-tasks" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
-                    <label for="toggle-tasks" class="ml-2 block text-sm text-gray-900">Mostrar TODAS las Tareas (Rojo)</label>
-                </div>
+            <h2 class="font-semibold text-gray-800 mb-2">Capas Globales</h2>
+            <!-- Checkbox original "Mostrar TODAS" -->
+            <div class="flex items-center">
+                <input id="toggle-tasks" type="checkbox" class="h-4 w-4 text-gray-600 border-gray-300 rounded focus:ring-gray-500">
+                <label for="toggle-tasks" class="ml-2 block text-sm text-gray-900">Mostrar TODAS las Tareas</label>
+            </div>
+            
+            <h3 class="font-semibold text-gray-800 mt-3 mb-1 text-sm">Mapas de Calor (Categorías)</h3>
+            <!-- Los checkboxes de categorías se generarán aquí -->
+            <div id="layer-toggles" class="space-y-1 max-h-24 overflow-y-auto">
+                 <p class="text-xs text-gray-400 italic">Cargando categorías...</p>
             </div>
         </div>
 
+        <!-- 
+          Panel de Alertas (con 3 botones): 
+        -->
         <div class="flex-1 p-4 overflow-y-auto">
             <div class="flex justify-between items-center mb-2 gap-2">
                 <h2 class="font-semibold text-gray-800 shrink-0">Alertas Proximidad</h2>
@@ -82,30 +99,41 @@
             </div>
         </div>
 
+        <!-- Pie de página -->
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v3.4 (Street View)
+            App GeoAlerta v3.6 (Capas Híbridas)
         </div>
     </aside>
 
+    <!-- 
+      - En móvil (h-[60vh]): El mapa ocupa el 60% restante de la altura.
+      - En desktop (sm:h-full): Vuelve a ocupar la altura completa.
+    -->
     <main class="flex-1 h-[60vh] sm:h-full w-full">
         <div id="map"></div>
     </main>
 
+    <!-- Contenedor de Notificaciones -->
     <div id="notification-container" class="fixed bottom-4 right-4 z-[2000] w-80 space-y-3">
-        </div>
+        <!-- Las notificaciones se añadirán aquí -->
+    </div>
 
     <script>
         // --- Variables Globales ---
         let map;
-        let allTasks = [];
+        let allTasks = []; // Almacenará { task, marker }
         let allPoles = [];
-        let taskLayerGroup = L.layerGroup();
+        
+        let taskLayerGroup = L.layerGroup();         // Para "Mostrar TODAS"
+        let keywordLayerGroups = {};                 // Para "Mapas de Calor"
+        
         let proximityPolesLayerGroup = L.layerGroup(); 
         let proximityTaskLayerGroup = L.layerGroup();
+        
         let proximityMarker = null;
         let isDataLoaded = false;
         let pendingSharedLatLng = null;
-        let selectedLatLng = null; // <-- NUEVA: Para guardar el punto
+        let selectedLatLng = null; 
 
         // --- NOMBRES DE ARCHIVO (URLs de "View Raw" del usuario) ---
         const TASK_FILE_NAME = 'https://raw.githubusercontent.com/rodox2886/GeoAlerta/main/LMZ%20Octubre.xlsx';
@@ -123,7 +151,7 @@
             const bgColor = type === 'error' ? 'bg-red-600' : (type === 'success' ? 'bg-green-600' : 'bg-blue-600');
             const notification = document.createElement('div');
             notification.className = `notification ${bgColor} text-white p-4 rounded-lg shadow-lg flex items-start`;
-            notification.innerHTML = `<div class="flex-1">${message}</div><button class="ml-2 text-xl font-bold leading-none">&times;</button>`;
+            notification.innerHTML = `<div class="flex-1">${message}</div><button class="ml-2 text-xl font-bold leading-none">×</button>`;
             notification.querySelector('button').onclick = () => {
                 notification.classList.add('fade-out');
                 setTimeout(() => notification.remove(), 500);
@@ -152,10 +180,9 @@
         // --- Inicialización ---
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
-            document.getElementById('toggle-tasks').addEventListener('change', toggleLayers);
+            document.getElementById('toggle-tasks').addEventListener('change', toggleAllTasksLayer); // <-- RESTAURADO
             document.getElementById('paste-coords').addEventListener('click', handlePaste);
             document.getElementById('locate-me').addEventListener('click', handleLocateMe);
-            // --- NUEVO: Listener para Street View ---
             document.getElementById('street-view').addEventListener('click', openStreetView);
             
             if ('serviceWorker' in navigator) {
@@ -184,6 +211,8 @@
 
             proximityPolesLayerGroup.addTo(map);
             proximityTaskLayerGroup.addTo(map);
+            // Las capas 'taskLayerGroup' y 'keywordLayerGroups' se añaden/quitan con checkboxes
+            
             map.on('click', onMapClick);
             
             const event = new Event('mapInitialized');
@@ -194,14 +223,13 @@
             triggerAlertsAt(e.latlng, "Clic en mapa");
         }
 
-        // --- NUEVA FUNCIÓN: Abrir Street View ---
+        // --- Función Street View ---
         function openStreetView() {
             if (selectedLatLng) {
                 const lat = selectedLatLng.lat;
                 const lng = selectedLatLng.lng;
-                // URL de Google Maps Street View
                 const url = `http://maps.google.com/maps?q=&layer=c&cbll=${lat},${lng}`;
-                window.open(url, '_blank'); // Abrir en una nueva pestaña
+                window.open(url, '_blank'); 
             } else {
                 showNotification("Primero selecciona un punto en el mapa.", "info");
             }
@@ -283,7 +311,7 @@
             }
         }
         
-        // --- Función de Alertas (MODIFICADA) ---
+        // --- Función de Alertas ---
         function triggerAlertsAt(latlng, source = "mapa") {
             if (proximityMarker) map.removeLayer(proximityMarker);
             proximityPolesLayerGroup.clearLayers(); 
@@ -294,9 +322,8 @@
 
             findNearbyAlerts(latlng);
             
-            // --- NUEVO: Habilitar el botón de Street View ---
-            selectedLatLng = latlng; // Guardar el punto
-            document.getElementById('street-view').disabled = false; // Habilitar el botón
+            selectedLatLng = latlng; 
+            document.getElementById('street-view').disabled = false;
             
             if (source === "Action") { 
                 showNotification("Alertas cargadas para el punto.", "success");
@@ -309,7 +336,6 @@
         // --- Carga de Datos desde Repositorio ---
         async function loadDataFromRepo() {
             try {
-                // Añadir timestamp para intentar evitar caché
                 const timestamp = Date.now();
                 const taskUrl = `${TASK_FILE_NAME}?t=${timestamp}`;
                 const poleUrl = `${POLE_FILE_NAME}?t=${timestamp}`;
@@ -322,8 +348,16 @@
                     loadPoleFile(poleUrl)
                 ]);
 
+                // Procesa los datos y llena el array `allTasks`
                 processTaskData(taskData);
-                processPoleData(poleData); // Seguimos procesando postes en memoria
+                // Procesa los postes (solo para proximidad)
+                processPoleData(poleData); 
+                
+                // --- NUEVO: Popula las capas globales ---
+                populateGlobalLayers();
+                
+                // Crear los checkboxes de capas
+                createLayerToggles(); 
 
                 isDataLoaded = true;
                 showNotification("Datos de Tareas y Postes cargados.", "success");
@@ -337,7 +371,6 @@
 
             } catch (error) {
                 console.error("Error al cargar datos del repositorio:", error);
-                // Mostrar el error completo en la notificación para depurar
                 showNotification(`Error fatal al cargar: ${error.message}.`, "error");
                 document.getElementById('alerts-instructions').innerText = "Error al cargar datos.";
                 document.getElementById('alerts-placeholder').innerText = "Error al cargar datos. Refresca la app.";
@@ -347,7 +380,7 @@
         // --- FUNCIÓN PARA LEER XLSX ---
         async function loadTaskFile(url) {
             try {
-                const response = await fetch(url, { cache: "no-store" }); // Intentar deshabilitar caché
+                const response = await fetch(url, { cache: "no-store" }); 
                 console.log(`Respuesta para ${url}: ${response.status}`);
                  if (!response.ok) {
                     throw new Error(`No se encontró ${url} (status: ${response.status})`);
@@ -358,15 +391,14 @@
                 const worksheet = workbook.Sheets[firstSheetName];
                 return XLSX.utils.sheet_to_json(worksheet);
              } catch (error) {
-                 error.url = url; // Añadir la URL al objeto de error
+                 error.url = url; 
                  throw error;
              }
         }
 
-        // Esta función para leer Postes (Excel) sigue igual y está bien
         async function loadPoleFile(url) {
              try {
-                const response = await fetch(url, { cache: "no-store" }); // Intentar deshabilitar caché
+                const response = await fetch(url, { cache: "no-store" }); 
                 console.log(`Respuesta para ${url}: ${response.status}`);
                  if (!response.ok) {
                      throw new Error(`No se encontró ${url} (status: ${response.status})`);
@@ -377,14 +409,15 @@
                 const worksheet = workbook.Sheets[firstSheetName];
                 return XLSX.utils.sheet_to_json(worksheet);
             } catch (error) {
-                 error.url = url; // Añadir la URL al objeto de error
+                 error.url = url; 
                  throw error;
              }
         }
 
-        // --- Funciones de Procesamiento de Datos (Sin cambios) ---
+        // --- Funciones de Procesamiento de Datos (MODIFICADA) ---
         function processTaskData(data) {
-            allTasks = [];
+            allTasks = []; // Limpiar
+            
             data.forEach(row => {
                 const latKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'coordenada 1');
                 const lngKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'coordenada 2');
@@ -397,19 +430,13 @@
                 let plannedTime = 'N/A';
                 const plannedDateTimeStr = row[plannedTimeKey];
                 if (plannedDateTimeStr) {
-                    // Intenta extraer solo la hora, manejando diferentes formatos
                     const timeMatch = String(plannedDateTimeStr).match(/(\d{1,2}:\d{2}(:\d{2})?)/);
-                    if (timeMatch) {
-                        plannedTime = timeMatch[1];
-                    } else {
-                        // Si no encuentra formato HH:MM, intenta separar por espacio
+                    if (timeMatch) plannedTime = timeMatch[1];
+                    else {
                          const parts = String(plannedDateTimeStr).split(' ');
-                         if (parts.length > 1 && parts[1].includes(':')) {
-                             plannedTime = parts[1];
-                         }
+                         if (parts.length > 1 && parts[1].includes(':')) plannedTime = parts[1];
                     }
                 }
-
 
                 if (isValidCoord(lat, lng) && keywords.length > 0) {
                     const task = {
@@ -418,17 +445,44 @@
                         direccion: row['Dirección'] || 'N/A',
                         causal: row['Causal Resultado'] || 'N/A',
                         obs: obsText,
-                        plannedTime: plannedTime // Asegúrate que plannedTime tenga un valor
+                        plannedTime: plannedTime,
+                        keywords: keywords // Guardar las keywords en la tarea
                     };
-                    allTasks.push(task);
+                    
+                    // --- Crear el marcador UNA VEZ ---
                     const popupContent = `<div class="w-64"><h3 class="font-bold text-red-700">Tarea: ${task.id}</h3><p class="text-sm"><strong>Dirección:</strong> ${task.direccion}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><hr class="my-1"><p class="text-sm font-medium"><strong>Observaciones:</strong></p><p class="text-sm italic bg-red-50 p-1 rounded">${task.obs}</p></div>`;
-                    L.marker(task.latlng, { icon: taskIcon }).bindPopup(popupContent).addTo(taskLayerGroup);
+                    const marker = L.marker(task.latlng, { icon: taskIcon }).bindPopup(popupContent);
+                    
+                    // Guardar la tarea y su marcador asociado
+                    allTasks.push({ task, marker });
                 }
             });
+            
             console.log(`Cargadas ${allTasks.length} tareas (con categorías).`);
             if (allTasks.length === 0 && data.length > 0) {
                 showNotification("No se encontraron tareas con palabras clave (Custodia, Hidro, etc.) en 'Observaciones'.", "info");
             }
+        }
+        
+        // --- NUEVA FUNCIÓN: Poblar las capas globales ---
+        function populateGlobalLayers() {
+            taskLayerGroup.clearLayers();
+            keywordLayerGroups = {};
+            
+            allTasks.forEach(({ task, marker }) => {
+                // 1. Añadir a la capa "Mostrar TODAS"
+                taskLayerGroup.addLayer(marker);
+
+                // 2. Añadir a las capas de categoría (mapas de calor)
+                task.keywords.forEach(kw => {
+                    if (!keywordLayerGroups[kw]) {
+                        keywordLayerGroups[kw] = L.layerGroup();
+                    }
+                    keywordLayerGroups[kw].addLayer(marker);
+                });
+            });
+            
+            console.log("Categorías encontradas:", Object.keys(keywordLayerGroups));
         }
 
         function processPoleData(data) {
@@ -462,20 +516,65 @@
             return true;
         }
 
-        function toggleLayers() {
-            const showTasks = document.getElementById('toggle-tasks').checked;
-            if (showTasks) {
+        // --- NUEVA: Función para crear los checkboxes de capas ---
+        function createLayerToggles() {
+            const container = document.getElementById('layer-toggles');
+            container.innerHTML = ''; // Limpiar "Cargando..."
+            
+            const keywords = Object.keys(keywordLayerGroups).sort();
+            
+            if (keywords.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 italic">No se encontraron categorías.</p>';
+                return;
+            }
+
+            keywords.forEach(keyword => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `toggle-${keyword}`; // ej: toggle-CUSTODIA
+                checkbox.value = keyword;
+                checkbox.className = 'h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500';
+                checkbox.addEventListener('change', onToggleKeywordLayer);
+                
+                const label = document.createElement('label');
+                label.htmlFor = `toggle-${keyword}`;
+                label.className = 'ml-2 block text-sm text-gray-900';
+                label.textContent = `Mostrar ${keyword}`;
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+        
+        // --- NUEVA: Handler para los checkboxes de categoría ---
+        function onToggleKeywordLayer(e) {
+            const keyword = e.target.value;
+            const layer = keywordLayerGroups[keyword];
+            
+            if (!layer) return;
+            
+            if (e.target.checked) {
+                map.addLayer(layer);
+            } else {
+                map.removeLayer(layer);
+            }
+        }
+        
+        // --- NUEVA: Handler para el checkbox "Mostrar TODAS" ---
+        function toggleAllTasksLayer(e) {
+            if (e.target.checked) {
                 map.addLayer(taskLayerGroup);
             } else {
                 map.removeLayer(taskLayerGroup);
             }
         }
 
-        // --- Funciones del "Alertador" (MODIFICADAS) ---
 
-        /**
-         * Función principal: Busca tareas, las agrupa y las muestra.
-         */
+        // --- Funciones del "Alertador" (MODIFICADAS) ---
         function findNearbyAlerts(clickedLatLng) {
             const alertsPanel = document.getElementById('alerts-panel');
             alertsPanel.innerHTML = '';
@@ -486,7 +585,6 @@
             allPoles.forEach(pole => {
                 const distance = clickedLatLng.distanceTo(pole.latlng);
                 if (distance <= POLE_RADIUS) {
-                    // Solo los dibujamos en el mapa, no en el panel.
                     const popupContent = `<div class="w-64"><h3 class="font-bold text-blue-700">Poste: ${pole.id}</h3><p class="text-sm"><strong>Desc:</strong> ${pole.desc}</p><p class="text-sm"><strong>Calle:</strong> ${pole.calle} ${pole.altura}</p><hr class="my-1"><p class="text-sm font-medium bg-blue-50 p-1 rounded"><strong>¡Atención!</strong> Poste de 11m, probable necesidad de hidroelevador.</p></div>`;
                     L.marker(pole.latlng, { icon: poleIcon })
                         .bindPopup(popupContent)
@@ -500,10 +598,10 @@
             let taskGroups = {};
             let foundTasks = 0;
 
-            allTasks.forEach(task => {
+            allTasks.forEach(({ task, marker }) => { // <-- Desestructurar para obtener la tarea y su marcador
                 const distance = clickedLatLng.distanceTo(task.latlng);
                 
-                const keywords = analyzeKeywords(task.obs);
+                const keywords = task.keywords; // Usar keywords ya guardadas
                 const needsCustody = keywords.includes('CUSTODIA');
                 const mentionsPole11m = keywords.includes('POSTE 11m') || keywords.includes('HIDRO');
                 let effectiveRadius = PROXIMITY_RADIUS;
@@ -513,18 +611,18 @@
                 if (distance <= effectiveRadius) {
                     foundTasks++; // Contar tareas totales
                     
-                    // --- Añadir marcador al mapa ---
-                    const popupContent = `<div class="w-64"><h3 class="font-bold text-red-700">Tarea: ${task.id}</h3><p class="text-sm"><strong>Dirección:</strong> ${task.direccion}</p><p class="text-sm"><strong>Causal:</strong> ${task.causal}</p><hr class="my-1"><p class="text-sm font-medium"><strong>Observaciones:</strong></p><p class="text-sm italic bg-red-50 p-1 rounded">${task.obs}</p></div>`;
-                    L.marker(task.latlng, { icon: taskIcon })
-                        .bindPopup(popupContent)
-                        .addTo(proximityTaskLayerGroup);
+                    // --- Añadir el MARCADOR EXISTENTE al mapa de proximidad ---
+                    proximityTaskLayerGroup.addLayer(marker);
 
                     // --- Añadir a grupos para el panel ---
                     keywords.forEach(kw => {
                         if (!taskGroups[kw]) {
                             taskGroups[kw] = []; // Inicializar array
                         }
-                        taskGroups[kw].push(task); // Añadir la tarea
+                        // Solo añadir una vez al grupo del panel
+                        if (!taskGroups[kw].some(t => t.id === task.id)) {
+                             taskGroups[kw].push(task); // Añadir la tarea
+                        }
                     });
                 }
             });
@@ -588,10 +686,8 @@
             const el = document.createElement('div');
             el.className = 'bg-gray-50 p-2 rounded-md border border-gray-200';
             
-            // Analizar keywords solo para el horario de CUSTODIA
-            const keywords = analyzeKeywords(task.obs);
             let timeHTML = '';
-            if (keywords.includes('CUSTODIA') && task.plannedTime && task.plannedTime !== 'N/A') {
+            if (task.keywords.includes('CUSTODIA') && task.plannedTime && task.plannedTime !== 'N/A') {
                 timeHTML = `<span class="font-bold text-red-700 ml-2">(Horario: ${task.plannedTime})</span>`;
             }
 
