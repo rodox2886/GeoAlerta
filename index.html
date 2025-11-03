@@ -1,4 +1,5 @@
-        <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -87,7 +88,7 @@
         </div>
 
         <div class="p-4 border-t text-xs text-gray-400">
-            App GeoAlerta v3.7 (con Heatmaps)
+            App GeoAlerta v4.1 (Lógica 7.5m Corr.)
         </div>
     </aside>
 
@@ -192,7 +193,6 @@
 
             proximityPolesLayerGroup.addTo(map);
             proximityTaskLayerGroup.addTo(map);
-            // Las capas globales se gestionan por checkboxes
             
             map.on('click', onMapClick);
             
@@ -332,10 +332,8 @@
                 processTaskData(taskData);
                 processPoleData(poleData); 
                 
-                // Popula las capas globales (de Puntos y de Calor)
                 populateGlobalLayers();
                 
-                // Crear los checkboxes de capas
                 createLayerToggles(); 
 
                 isDataLoaded = true;
@@ -402,7 +400,7 @@
                 const lngKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'coordenada 2');
                 const plannedTimeKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'fecha de inicio planificada');
                 const obsText = row['Observaciones'] || 'Sin observaciones';
-                const keywords = analyzeKeywords(obsText);
+                const keywords = analyzeKeywords(obsText); // <-- Llama a la función actualizada
                 const lat = parseFloat(String(row[latKey] || '0').replace(',', '.'));
                 const lng = parseFloat(String(row[lngKey] || '0').replace(',', '.'));
                 
@@ -440,8 +438,8 @@
         // --- NUEVA FUNCIÓN: Poblar las capas globales ---
         function populateGlobalLayers() {
             taskLayerGroup.clearLayers();
-            keywordHeatData = {}; // <-- Almacena los [lat,lng]
-            keywordHeatLayers = {}; // <-- Almacena los L.heatLayer
+            keywordHeatData = {}; 
+            keywordHeatLayers = {}; 
             
             allTasksData.forEach((task) => {
                 // 1. Crear marcador para "Mostrar TODAS"
@@ -597,10 +595,11 @@
                 
                 const keywords = task.keywords; // Usar keywords ya guardadas
                 const needsCustody = keywords.includes('CUSTODIA');
-                const mentionsPole11m = keywords.includes('POSTE 11m') || keywords.includes('HIDRO');
+                // MODIFICADO: Ahora 7.5m también implica hidro
+                const mentionsPole = keywords.includes('POSTE 11m') || keywords.includes('POSTE 7.5m') || keywords.includes('HIDRO');
                 let effectiveRadius = PROXIMITY_RADIUS;
                 if (needsCustody) effectiveRadius = CUSTODY_RADIUS;
-                else if (mentionsPole11m) effectiveRadius = POLE_RADIUS;
+                else if (mentionsPole) effectiveRadius = POLE_RADIUS; // Radio ampliado para postes y hidro
 
                 if (distance <= effectiveRadius) {
                     foundTasks++; // Contar tareas totales
@@ -699,17 +698,67 @@
             return el;
         }
 
-        // --- (Sin cambios) ---
+        // --- (MODIFICADO: Lógica de HIDRO implícita v4.1 - CORREGIDA) ---
         function analyzeKeywords(text) {
             if (!text) return [];
             const lowerText = text.toLowerCase();
-            const found = [];
-            if (lowerText.includes('hidro') || lowerText.includes('hidroelevador')) found.push('HIDRO');
-            if (lowerText.includes('custodia') || lowerText.includes('policia') || lowerText.includes('policía') || lowerText.includes('peligro') || lowerText.includes('zona peligrosa') || lowerText.includes('inseguro')) found.push('CUSTODIA');
-            if (lowerText.includes('11m') || lowerText.includes('11 m') || lowerText.includes('11mtrs') || lowerText.includes('postacion de 11 m')) found.push('POSTE 11m');
-            if (lowerText.includes('7,5m') || lowerText.includes('7,5 m') || lowerText.includes('7,5mtrs') || lowerText.includes('7.5m') || lowerText.includes('7.5 m') || lowerText.includes('7.5mtrs')) found.push('POSTE 7.5m');
-            if (lowerText.includes('deriva')) found.push('DERIVADO');
-            return found;
+            const found = []; // Usar un Set para evitar duplicados fácilmente
+            
+            // --- Listas de palabras clave ---
+            const hidroKeywords = [
+                'hidro', 'hidroelevador', 'idro', 'hidrogrua', 'hidro grua', 'hidrolavadora'
+            ];
+            const custodiaKeywords = [
+                'custodia', 'policia', 'policía', 'peligro', 'zona peligrosa', 'inseguro'
+            ];
+            const poste11mKeywords = [
+                '11m', '11 m', '11mtrs', 'postacion de 11 m'
+            ];
+            const poste75mKeywords = [
+                '7,5m', '7,5 m', '7,5mtrs', '7.5m', '7.5 m', '7.5mtrs'
+            ];
+            const derivadoKeywords = [
+                'deriva'
+            ];
+
+            // --- Lógica de Detección ---
+            
+            let needsHidro = false; // Variable de control
+
+            // 1. Chequear HIDRO explícito
+            if (hidroKeywords.some(kw => lowerText.includes(kw))) {
+                needsHidro = true;
+            }
+            
+            // 2. Chequear CUSTODIA
+            if (custodiaKeywords.some(kw => lowerText.includes(kw))) {
+                found.push('CUSTODIA');
+            }
+            
+            // 3. Chequear POSTE 11m
+            if (poste11mKeywords.some(kw => lowerText.includes(kw))) {
+                found.push('POSTE 11m');
+                needsHidro = true; // REGLA IMPLÍCITA
+            }
+            
+            // 4. Chequear POSTE 7.5m (separado)
+            if (poste75mKeywords.some(kw => lowerText.includes(kw))) {
+                found.push('POSTE 7.5m');
+                needsHidro = true; // REGLA IMPLÍCITA (RESTAURADA)
+            }
+            
+            // 5. Añadir HIDRO si se marcó
+            if (needsHidro) {
+                found.push('HIDRO');
+            }
+
+            // 6. Chequear DERIVADO
+            if (derivadoKeywords.some(kw => lowerText.includes(kw))) {
+                found.push('DERIVADO');
+            }
+            
+            // Devolver un array sin duplicados
+            return [...new Set(found)];
         }
     </script>
 </body>
